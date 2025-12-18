@@ -142,21 +142,53 @@ function ProfileTab() {
               className="w-full h-full object-cover rounded-full border-4 border-muted"
             />
           </div>
-          <div className="w-full space-y-2">
-             <Label>Image URL</Label>
-             <div className="flex gap-2">
-               <Input 
-                 value={formData.profileImage} 
-                 onChange={(e) => setFormData({...formData, profileImage: e.target.value})}
-                 placeholder="https://..."
-               />
-               <Button onClick={handleSave} disabled={isSaving} size="icon" className="flex-shrink-0">
-                 <Save className="w-4 h-4" />
-               </Button>
+          <div className="w-full space-y-3">
+             <div className="space-y-2">
+               <Label htmlFor="imageUpload" className="block">
+                 {language === 'ar' ? 'رفع من المعرض' : 'Upload from Gallery'}
+               </Label>
+               <div className="relative">
+                 <input 
+                   id="imageUpload"
+                   type="file" 
+                   accept="image/*" 
+                   className="hidden"
+                   onChange={(e) => {
+                     const file = e.target.files?.[0];
+                     if (file) {
+                       const reader = new FileReader();
+                       reader.onload = (event) => {
+                         const imageData = event.target?.result as string;
+                         setFormData({...formData, profileImage: imageData});
+                       };
+                       reader.readAsDataURL(file);
+                     }
+                   }}
+                 />
+                 <Button 
+                   onClick={() => document.getElementById('imageUpload')?.click()}
+                   variant="outline"
+                   className="w-full"
+                 >
+                   <ImageIcon className="w-4 h-4 me-2" />
+                   {language === 'ar' ? 'اختر صورة' : 'Choose Image'}
+                 </Button>
+               </div>
              </div>
-             <p className="text-xs text-muted-foreground">
-               {language === 'ar' ? '* أدخل رابط صورة مباشر وثم اضغط حفظ' : '* Enter image URL and click Save'}
-             </p>
+             
+             <div className="relative border-t pt-3">
+               <p className="text-sm font-medium mb-2">{language === 'ar' ? 'أو برابط' : 'Or use URL'}</p>
+               <div className="flex gap-2">
+                 <Input 
+                   value={formData.profileImage.startsWith('data:') ? '' : formData.profileImage} 
+                   onChange={(e) => setFormData({...formData, profileImage: e.target.value})}
+                   placeholder="https://..."
+                 />
+                 <Button onClick={handleSave} disabled={isSaving} size="icon" className="flex-shrink-0">
+                   <Save className="w-4 h-4" />
+                 </Button>
+               </div>
+             </div>
           </div>
         </CardContent>
       </Card>
