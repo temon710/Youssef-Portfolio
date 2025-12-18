@@ -67,21 +67,49 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return localStorage.getItem('isAuthenticated') === 'true';
   });
 
-  // Password State
-  const [adminPassword, setAdminPasswordState] = useState<string>(() => {
-    return localStorage.getItem('adminPassword') || 'admin123';
-  });
+  const [adminPassword, setAdminPassword] = useState<string>('');
 
   // Data State
-  const [userData, setUserData] = useState<UserData>(() => {
-    const saved = localStorage.getItem('userData');
-    return saved ? JSON.parse(saved) : INITIAL_DATA;
-  });
+  const [userData, setUserData] = useState<UserData>(INITIAL_DATA);
+  const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [projects, setProjects] = useState<Project[]>(() => {
-    const saved = localStorage.getItem('projects');
-    return saved ? JSON.parse(saved) : INITIAL_PROJECTS;
-  });
+  // Load initial data from API
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Fetch admin data
+        const adminRes = await fetch('/api/admin');
+        if (adminRes.ok) {
+          const admin = await adminRes.json();
+          setUserData({
+            bio: { ar: admin.bioAr, en: admin.bioEn },
+            phone: admin.phone,
+            profileImage: admin.profileImage
+          });
+        }
+
+        // Fetch projects
+        const projectsRes = await fetch('/api/projects');
+        if (projectsRes.ok) {
+          const projectsData = await projectsRes.json();
+          setProjects(projectsData.map((p: any) => ({
+            id: p.id.toString(),
+            title: { ar: p.titleAr, en: p.titleEn },
+            description: { ar: p.descriptionAr, en: p.descriptionEn },
+            category: { ar: p.categoryAr, en: p.categoryEn },
+            images: p.images
+          })));
+        }
+      } catch (error) {
+        console.error('Failed to load data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   // Effects
   useEffect(() => {
@@ -95,56 +123,136 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.lang = language;
   }, [language]);
 
-  useEffect(() => {
-    localStorage.setItem('userData', JSON.stringify(userData));
-  }, [userData]);
-
-  useEffect(() => {
-    localStorage.setItem('projects', JSON.stringify(projects));
-  }, [projects]);
-
   // Actions
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
   const login = (password: string) => {
-    if (password === adminPassword) {
-      setIsAuthenticated(true);
-      localStorage.setItem('isAuthenticated', 'true');
-      return true;
-    }
-    return false;
+    setAdminPassword(password);
+    setIsAuthenticated(true);
+    localStorage.setItem('isAuthenticated', 'true');
+    return true;
   };
 
   const logout = () => {
     setIsAuthenticated(false);
+    setAdminPassword('');
     localStorage.removeItem('isAuthenticated');
   };
 
-  const changePassword = (oldPassword: string, newPassword: string): boolean => {
-    if (oldPassword === adminPassword) {
-      setAdminPasswordState(newPassword);
-      localStorage.setItem('adminPassword', newPassword);
-      return true;
+  const changePassword = async (oldPassword: string, newPassword: string): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/admin/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oldPassword, newPassword })
+      });
+      
+      if (res.ok) {
+        setAdminPassword(newPassword);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Failed to change password:', error);
+      return false;
     }
-    return false;
   };
 
-  const updateUserData = (data: Partial<UserData>) => {
-    setUserData(prev => ({ ...prev, ...data }));
+  const updateUserData = async (data: Partial<UserData>) => {
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          password: adminPassword,
+          bioAr: data.bio?.ar || userData.bio.ar,
+          bioEn: data.bio?.en || userData.bio.en,
+          phone: data.phone || userData.phone,
+          profileImage: data.profileImage || userData.profileImage
+        })
+      });
+      
+      if (res.ok) {
+        setUserData(prev => ({ ...prev, ...data }));
+      }
+    } catch (error) {
+      console.error('Failed to update user data:', error);
+    }
   };
 
-  const addProject = (project: Omit<Project, 'id'>) => {
-    const newProject = { ...project, id: Date.now().toString() };
-    setProjects(prev => [newProject, ...prev]);
+  const addProject = async (project: Omit<Project, 'id'>) => {
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          password: adminPassword,
+          titleAr: project.title.ar,
+          titleEn: project.title.en,
+          descriptionAr: project.description.ar,
+          descriptionEn: project.description.en,
+          categoryAr: project.category.ar,
+          categoryEn: project.category.en,
+          images: project.images
+        })
+      });
+      
+      if (res.ok) {
+        const newProject = await res.json();
+        setProjects(prev => [{
+          id: newProject.id.toString(),
+          title: { ar: newProject.titleAr, en: newProject.titleEn },
+          description: { ar: newProject.descriptionAr, en: newProject.descriptionEn },
+          category: { ar: newProject.categoryAr, en: newProject.categoryEn },
+          images: newProject.images
+        }, ...prev]);
+      }
+    } catch (error) {
+      console.error('Failed to add project:', error);
+    }
   };
 
-  const updateProject = (id: string, updates: Partial<Project>) => {
-    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+  const updateProject = async (id: string, updates: Partial<Project>) => {
+    try {
+      const res = await fetch(`/api/projects/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          password: adminPassword,
+          ...(updates.title && { titleAr: updates.title.ar, titleEn: updates.title.en }),
+          ...(updates.description && { descriptionAr: updates.description.ar, descriptionEn: updates.description.en }),
+          ...(updates.category && { categoryAr: updates.category.ar, categoryEn: updates.category.en }),
+          ...(updates.images && { images: updates.images })
+        })
+      });
+      
+      if (res.ok) {
+        setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+      }
+    } catch (error) {
+      console.error('Failed to update project:', error);
+    }
   };
 
-  const deleteProject = (id: string) => {
-    setProjects(prev => prev.filter(p => p.id !== id));
+  const deleteProject = async (id: string) => {
+    try {
+      const res = await fetch(`/api/projects/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: adminPassword })
+      });
+      
+      if (res.ok) {
+        setProjects(prev => prev.filter(p => p.id !== id));
+      }
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+    }
   };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen"><div className="text-xl">Loading...</div></div>;
+  }
 
   return (
     <AppContext.Provider value={{
@@ -161,7 +269,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addProject,
       updateProject,
       deleteProject,
-      changePassword: changePassword as any,
+      changePassword
     }}>
       {children}
     </AppContext.Provider>

@@ -29,10 +29,10 @@ export interface AppContextType {
   login: (password: string) => boolean;
   logout: () => void;
   userData: UserData;
-  updateUserData: (data: Partial<UserData>) => void;
+  updateUserData: (data: Partial<UserData>) => Promise<void>;
   projects: Project[];
-  addProject: (project: Omit<Project, 'id'>) => void;
-  updateProject: (id: string, project: Partial<Project>) => void;
-  deleteProject: (id: string) => void;
-  changePassword: (oldPassword: string, newPassword: string) => boolean;
+  addProject: (project: Omit<Project, 'id'>) => Promise<void>;
+  updateProject: (id: string, project: Partial<Project>) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
+  changePassword: (oldPassword: string, newPassword: string) => Promise<boolean>;
 }
