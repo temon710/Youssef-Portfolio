@@ -34,4 +34,5 @@ export interface AppContextType {
   addProject: (project: Omit<Project, 'id'>) => void;
   updateProject: (id: string, project: Partial<Project>) => void;
   deleteProject: (id: string) => void;
+  changePassword: (oldPassword: string, newPassword: string) => boolean;
 }

@@ -67,6 +67,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return localStorage.getItem('isAuthenticated') === 'true';
   });
 
+  // Password State
+  const [adminPassword, setAdminPasswordState] = useState<string>(() => {
+    return localStorage.getItem('adminPassword') || 'admin123';
+  });
+
   // Data State
   const [userData, setUserData] = useState<UserData>(() => {
     const saved = localStorage.getItem('userData');
@@ -102,8 +107,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
   const login = (password: string) => {
-    // Mock password check
-    if (password === 'admin123') {
+    if (password === adminPassword) {
       setIsAuthenticated(true);
       localStorage.setItem('isAuthenticated', 'true');
       return true;
@@ -114,6 +118,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     setIsAuthenticated(false);
     localStorage.removeItem('isAuthenticated');
+  };
+
+  const changePassword = (oldPassword: string, newPassword: string): boolean => {
+    if (oldPassword === adminPassword) {
+      setAdminPasswordState(newPassword);
+      localStorage.setItem('adminPassword', newPassword);
+      return true;
+    }
+    return false;
   };
 
   const updateUserData = (data: Partial<UserData>) => {
@@ -147,7 +160,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       projects,
       addProject,
       updateProject,
-      deleteProject
+      deleteProject,
+      changePassword: changePassword as any,
     }}>
       {children}
     </AppContext.Provider>
